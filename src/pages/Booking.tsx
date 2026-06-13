@@ -12,13 +12,23 @@ import {
   Tag,
   ArrowRight,
   User,
+  X,
+  CheckCircle2,
 } from 'lucide-react'
 import Stepper from '../components/Stepper'
+import CompanyLogo from '../components/CompanyLogo'
 import { cn, rwf } from '../lib/utils'
 
 const PRICE = 3500
 const SERVICE_FEE = 200
 const DISCOUNT = 100
+
+/** Demo promo codes — swap for backend validation when the API is ready. */
+const PROMOS: Record<string, { type: 'percent' | 'flat'; value: number; label: string }> = {
+  TAPA20: { type: 'percent', value: 20, label: '20% off your ticket' },
+  STUDENT: { type: 'percent', value: 15, label: '15% student discount' },
+  SAVE500: { type: 'flat', value: 500, label: 'RWF 500 off' },
+}
 
 // A1..D4 style layout; some seats pre-booked
 const booked = new Set(['A3', 'B4', 'C1', 'C2', 'D4', 'E2'])
@@ -28,6 +38,10 @@ export default function Booking() {
   const navigate = useNavigate()
   const [selected, setSelected] = useState<string[]>(['A2', 'B2'])
 
+  const [promoInput, setPromoInput] = useState('')
+  const [promo, setPromo] = useState<string | null>(null)
+  const [promoError, setPromoError] = useState('')
+
   const toggleSeat = (seat: string) => {
     if (booked.has(seat)) return
     setSelected((prev) =>
@@ -35,10 +49,40 @@ export default function Booking() {
     )
   }
 
-  const total = useMemo(
-    () => selected.length * PRICE + (selected.length ? SERVICE_FEE - DISCOUNT : 0),
-    [selected.length],
-  )
+  const subtotal = selected.length * PRICE
+  const serviceFee = selected.length ? SERVICE_FEE : 0
+  const onlineDiscount = selected.length ? DISCOUNT : 0
+
+  const promoDiscount = useMemo(() => {
+    if (!promo || !selected.length) return 0
+    const p = PROMOS[promo]
+    if (!p) return 0
+    return p.type === 'percent' ? Math.round((subtotal * p.value) / 100) : Math.min(p.value, subtotal)
+  }, [promo, subtotal, selected.length])
+
+  const total = Math.max(0, subtotal + serviceFee - onlineDiscount - promoDiscount)
+
+  const applyPromo = () => {
+    const code = promoInput.trim().toUpperCase()
+    if (!code) return
+    if (!selected.length) {
+      setPromoError('Select at least one seat before applying a code.')
+      return
+    }
+    if (PROMOS[code]) {
+      setPromo(code)
+      setPromoError('')
+      setPromoInput('')
+    } else {
+      setPromo(null)
+      setPromoError('That promo code is invalid or has expired.')
+    }
+  }
+
+  const removePromo = () => {
+    setPromo(null)
+    setPromoError('')
+  }
 
   return (
     <div className="bg-mist pb-16">
@@ -168,9 +212,7 @@ export default function Booking() {
                 <Bus className="h-5 w-5 text-white/70" />
               </div>
               <div className="mt-3 flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-lg bg-white/10 text-sm font-bold">
-                  VE
-                </span>
+                <CompanyLogo company="Volcano Express" size="sm" />
                 <div>
                   <div className="font-semibold">Volcano Express</div>
                   <div className="flex items-center gap-1 text-xs text-white/60">
@@ -215,22 +257,51 @@ export default function Booking() {
               </div>
 
               <div className="space-y-2 text-sm">
-                <Row label={`Ticket × ${selected.length || 0} passenger${selected.length === 1 ? '' : 's'}`} value={rwf(selected.length * PRICE)} />
-                <Row label="Service fee" value={rwf(selected.length ? SERVICE_FEE : 0)} />
-                <Row label="Online discount" value={`- ${rwf(selected.length ? DISCOUNT : 0)}`} accent />
+                <Row label={`Ticket × ${selected.length || 0} passenger${selected.length === 1 ? '' : 's'}`} value={rwf(subtotal)} />
+                <Row label="Service fee" value={rwf(serviceFee)} />
+                <Row label="Online discount" value={`- ${rwf(onlineDiscount)}`} accent />
+                {promoDiscount > 0 && promo && (
+                  <Row label={`Promo · ${promo}`} value={`- ${rwf(promoDiscount)}`} accent />
+                )}
                 <div className="flex items-center justify-between border-t border-ink-100 pt-2.5">
                   <span className="font-bold text-ink-900">Total Amount</span>
                   <span className="text-xl font-extrabold text-ink-900">{rwf(total)}</span>
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-                  <input className="input pl-9" placeholder="Promo code" />
+              {promo && PROMOS[promo] ? (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold text-emerald-700">{promo}</span>{' '}
+                    <span className="text-emerald-600">applied — {PROMOS[promo].label}</span>
+                  </div>
+                  <button onClick={removePromo} className="text-emerald-700 hover:text-emerald-900" aria-label="Remove promo code">
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <button className="btn-outline">Apply</button>
-              </div>
+              ) : (
+                <div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                      <input
+                        className="input pl-9 uppercase placeholder:normal-case"
+                        placeholder="Promo code"
+                        value={promoInput}
+                        onChange={(e) => { setPromoInput(e.target.value); setPromoError('') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyPromo() } }}
+                      />
+                    </div>
+                    <button type="button" onClick={applyPromo} className="btn-outline">Apply</button>
+                  </div>
+                  {promoError ? (
+                    <p className="mt-1.5 text-xs font-medium text-flame-600">{promoError}</p>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-ink-400">Try <span className="font-semibold text-ink-600">TAPA20</span>, <span className="font-semibold text-ink-600">STUDENT</span> or <span className="font-semibold text-ink-600">SAVE500</span>.</p>
+                  )}
+                </div>
+              )}
 
               <button
                 onClick={() => navigate('/booking/processing')}

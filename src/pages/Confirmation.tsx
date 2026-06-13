@@ -2,8 +2,23 @@ import { Link } from 'react-router-dom'
 import { CheckCircle2, Download, Calendar, MapPin, Ticket, ArrowRight } from 'lucide-react'
 import Stepper from '../components/Stepper'
 import { rwf } from '../lib/utils'
+import { downloadTicket } from '../lib/ticket'
 
 export default function Confirmation() {
+  const handleDownload = () =>
+    downloadTicket({
+      bookingRef: 'TR-8841',
+      passenger: 'Amina Uwimana',
+      carrier: 'Volcano Express',
+      depTime: '08:00 AM',
+      depPlace: 'Kigali · Nyabugogo',
+      arrTime: '11:30 AM',
+      arrPlace: 'Huye · Main Station',
+      date: 'Tue, 15 Jul 2025',
+      seats: 'A2, B2',
+      amountPaid: rwf(7100),
+    })
+
   return (
     <div className="bg-mist pb-16">
       <div className="border-b border-ink-100 bg-white py-5">
@@ -53,7 +68,7 @@ export default function Confirmation() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button className="btn-primary flex-1">
+                <button onClick={handleDownload} className="btn-primary flex-1">
                   <Download className="h-4 w-4" /> Download Ticket
                 </button>
                 <Link to="/dashboard/trips" className="btn-outline flex-1">

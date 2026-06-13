@@ -1,8 +1,36 @@
-import { useState } from 'react'
-import { User, Bell, Globe, Shield } from 'lucide-react'
-import { cn } from '../../lib/utils'
+import { useRef, useState } from 'react'
+import { User, Bell, Globe, Shield, CheckCircle2, Lock } from 'lucide-react'
+import { cn, readFileAsDataURL } from '../../lib/utils'
+import { useAccount, type Profile } from '../../store/account'
 
 export default function Settings() {
+  const { profile, updateProfile, changePassword } = useAccount()
+
+  const [form, setForm] = useState({
+    fullName: profile.fullName,
+    email: profile.email,
+    phone: profile.phone,
+    city: profile.city,
+  })
+  const [saved, setSaved] = useState(false)
+  const photoRef = useRef<HTMLInputElement>(null)
+
+  const setField = (key: keyof typeof form) => (value: string) => {
+    setForm((f) => ({ ...f, [key]: value }))
+    setSaved(false)
+  }
+
+  const onPhoto = async (file?: File) => {
+    if (!file || !file.type.startsWith('image/')) return
+    const dataUrl = await readFileAsDataURL(file)
+    updateProfile({ avatar: dataUrl })
+  }
+
+  const save = () => {
+    updateProfile(form as Partial<Profile>)
+    setSaved(true)
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -14,17 +42,31 @@ export default function Settings() {
       <div className="card p-6">
         <SectionTitle icon={User} title="Profile" />
         <div className="mt-4 flex items-center gap-4">
-          <img src="https://i.pravatar.cc/120?img=47" alt="avatar" className="h-16 w-16 rounded-full object-cover" />
-          <button className="btn-outline">Change photo</button>
+          <img src={profile.avatar} alt="avatar" className="h-16 w-16 rounded-full object-cover ring-2 ring-ink-100" />
+          <button className="btn-outline" onClick={() => photoRef.current?.click()}>
+            Change photo
+          </button>
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onPhoto(e.target.files?.[0])}
+          />
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <Field label="Full name" value="Amina Uwimana" />
-          <Field label="Email" value="amina.u@email.com" />
-          <Field label="Phone" value="+250 788 123 456" />
-          <Field label="City" value="Kigali" />
+          <Field label="Full name" value={form.fullName} onChange={setField('fullName')} />
+          <Field label="Email" value={form.email} onChange={setField('email')} type="email" />
+          <Field label="Phone" value={form.phone} onChange={setField('phone')} />
+          <Field label="City" value={form.city} onChange={setField('city')} />
         </div>
-        <div className="mt-5">
-          <button className="btn-primary">Save changes</button>
+        <div className="mt-5 flex items-center gap-3">
+          <button className="btn-primary" onClick={save}>Save changes</button>
+          {saved && (
+            <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" /> Profile updated
+            </span>
+          )}
         </div>
       </div>
 
@@ -64,11 +106,87 @@ export default function Settings() {
       {/* Security */}
       <div className="card p-6">
         <SectionTitle icon={Shield} title="Security" />
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <button className="btn-outline flex-1">Change password</button>
+        <ChangePassword changePassword={changePassword} />
+      </div>
+    </div>
+  )
+}
+
+function ChangePassword({
+  changePassword,
+}: {
+  changePassword: (current: string, next: string) => { ok: boolean; error?: string }
+}) {
+  const [open, setOpen] = useState(false)
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (next !== confirm) {
+      setStatus({ ok: false, msg: 'New password and confirmation do not match.' })
+      return
+    }
+    const res = changePassword(current, next)
+    if (res.ok) {
+      setStatus({ ok: true, msg: 'Password changed successfully.' })
+      setCurrent('')
+      setNext('')
+      setConfirm('')
+      setOpen(false)
+    } else {
+      setStatus({ ok: false, msg: res.error || 'Could not change password.' })
+    }
+  }
+
+  return (
+    <div className="mt-4">
+      {!open ? (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button className="btn-outline flex-1" onClick={() => { setOpen(true); setStatus(null) }}>
+            <Lock className="h-4 w-4" /> Change password
+          </button>
           <button className="btn-outline flex-1">Enable two-factor authentication</button>
         </div>
-      </div>
+      ) : (
+        <form onSubmit={submit} className="grid gap-4">
+          <PasswordField label="Current password" value={current} onChange={setCurrent} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PasswordField label="New password" value={next} onChange={setNext} />
+            <PasswordField label="Confirm new password" value={confirm} onChange={setConfirm} />
+          </div>
+          <p className="-mt-1 text-xs text-ink-400">Use 8+ characters. (Demo current password: taparide123)</p>
+          <div className="flex gap-3">
+            <button type="submit" className="btn-primary">Update password</button>
+            <button type="button" className="btn-ghost" onClick={() => { setOpen(false); setStatus(null) }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {status && (
+        <p
+          className={cn(
+            'mt-3 flex items-center gap-1.5 text-sm font-medium',
+            status.ok ? 'text-emerald-600' : 'text-flame-600',
+          )}
+        >
+          {status.ok && <CheckCircle2 className="h-4 w-4" />}
+          {status.msg}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function PasswordField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <input type="password" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="••••••••" />
     </div>
   )
 }
@@ -84,11 +202,21 @@ function SectionTitle({ icon: Icon, title }: { icon: typeof User; title: string 
   )
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({
+  label,
+  value,
+  onChange,
+  type = 'text',
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  type?: string
+}) {
   return (
     <div>
       <label className="label">{label}</label>
-      <input className="input" defaultValue={value} />
+      <input className="input" type={type} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   )
 }

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import Logo from '../../components/Logo'
 import { cn } from '../../lib/utils'
+import { useAccount } from '../../store/account'
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -27,6 +28,8 @@ const nav = [
 export default function DashboardLayout() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
+  const { profile, notifications } = useAccount()
+  const hasUnread = notifications.some((n) => n.unread)
 
   return (
     <div className="min-h-screen bg-mist">
@@ -49,17 +52,17 @@ export default function DashboardLayout() {
               className="relative grid h-10 w-10 place-items-center rounded-xl border border-ink-100 text-ink-600 hover:bg-ink-50"
             >
               <Bell className="h-5 w-5" />
-              <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-flame-600" />
+              {hasUnread && <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-flame-600" />}
             </Link>
             <div className="flex items-center gap-2">
               <img
-                src="https://i.pravatar.cc/80?img=47"
+                src={profile.avatar}
                 alt="avatar"
                 className="h-9 w-9 rounded-full object-cover"
               />
               <div className="hidden text-sm leading-tight sm:block">
-                <div className="font-semibold text-ink-900">Amina Uwimana</div>
-                <div className="text-xs text-ink-400">amina.u@email.com</div>
+                <div className="font-semibold text-ink-900">{profile.fullName}</div>
+                <div className="text-xs text-ink-400">{profile.email}</div>
               </div>
             </div>
           </div>

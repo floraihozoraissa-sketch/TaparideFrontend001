@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import MapEmbed from '../components/MapEmbed'
 
 const stops = [
   { name: 'Kigali (Nyabugogo)', time: '08:00 AM', state: 'done' },
@@ -49,18 +50,10 @@ export default function Journey() {
 function LiveTracking({ onArrive }: { onArrive: () => void }) {
   return (
     <div className="card overflow-hidden">
-      {/* Map */}
-      <div className="relative h-56 bg-[radial-gradient(circle_at_30%_30%,#E7E5F7,#F5F4FF)]">
-        <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-          <path d="M40 200 C 120 120, 200 160, 320 60" stroke="#10075C" strokeWidth="3" strokeDasharray="2 8" strokeLinecap="round" fill="none" />
-        </svg>
-        <span className="absolute left-8 bottom-12 grid h-6 w-6 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-white shadow-card">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-        </span>
-        <span className="absolute right-10 top-10 grid h-6 w-6 place-items-center rounded-full bg-white shadow-card">
-          <MapPin className="h-3.5 w-3.5 text-flame-600" />
-        </span>
-        <span className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white shadow-glow">
+      {/* Live map */}
+      <div className="relative h-56">
+        <MapEmbed from="Kigali, Rwanda" to="Huye, Rwanda" zoom={9} title="Live journey: Kigali to Huye" />
+        <span className="pointer-events-none absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white shadow-glow">
           <Bus className="h-3.5 w-3.5" /> 45 min left
         </span>
       </div>

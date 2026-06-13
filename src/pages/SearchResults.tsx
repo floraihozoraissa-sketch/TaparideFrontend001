@@ -13,9 +13,11 @@ import {
   Calendar,
   Pencil,
   Info,
+  SearchX,
 } from 'lucide-react'
-import { busTrips, busCompanies, type BusTrip } from '../data/mock'
+import { busTrips, busCompanies, companyBrands, type BusTrip, type Amenity } from '../data/mock'
 import AmenityIcons from '../components/AmenityIcons'
+import CompanyLogo from '../components/CompanyLogo'
 import { cn, rwf } from '../lib/utils'
 
 const departureWindows = [
@@ -24,7 +26,15 @@ const departureWindows = [
   { key: 'evening', label: 'Evening', sub: '6pm–10pm', icon: Moon },
 ]
 
-const amenityFilters = ['WiFi on Board', 'Air Conditioning', 'USB Charging', 'Onboard Restroom']
+const amenityFilters: { label: string; value: Amenity }[] = [
+  { label: 'WiFi on Board', value: 'WiFi' },
+  { label: 'Air Conditioning', value: 'AC' },
+  { label: 'USB Charging', value: 'Charging' },
+  { label: 'Onboard Restroom', value: 'Restroom' },
+]
+
+const MIN_PRICE = 2000
+const MAX_PRICE = 6000
 
 const tagStyles: Record<NonNullable<BusTrip['tag']>, string> = {
   Fastest: 'bg-ink-100 text-ink-700',
@@ -32,25 +42,52 @@ const tagStyles: Record<NonNullable<BusTrip['tag']>, string> = {
   'Almost Full': 'bg-flame-100 text-flame-700',
 }
 
+/** Derive a departure window key (morning/afternoon/evening) from a "08:00 AM" style time. */
+function windowOf(depTime: string): string {
+  const match = depTime.match(/(\d+):(\d+)\s*(AM|PM)/i)
+  if (!match) return 'morning'
+  let hour = parseInt(match[1], 10) % 12
+  if (/pm/i.test(match[3])) hour += 12
+  if (hour < 12) return 'morning'
+  if (hour < 18) return 'afternoon'
+  return 'evening'
+}
+
 export default function SearchResults() {
-  const [windows, setWindows] = useState<string[]>(['morning'])
-  const [companies, setCompanies] = useState<string[]>(['Volcano Express', 'Ritco Express'])
-  const [amenities, setAmenities] = useState<string[]>(['WiFi on Board', 'Air Conditioning'])
+  const [windows, setWindows] = useState<string[]>([])
+  const [companies, setCompanies] = useState<string[]>([])
+  const [amenities, setAmenities] = useState<Amenity[]>([])
+  const [maxPrice, setMaxPrice] = useState(MAX_PRICE)
   const [sort, setSort] = useState('departure')
 
-  const toggle = (
-    val: string,
-    list: string[],
-    setter: (v: string[]) => void,
-  ) => setter(list.includes(val) ? list.filter((x) => x !== val) : [...list, val])
+  function toggle<T>(val: T, list: T[], setter: (v: T[]) => void) {
+    setter(list.includes(val) ? list.filter((x) => x !== val) : [...list, val])
+  }
 
-  const sorted = useMemo(() => {
-    const copy = [...busTrips]
-    if (sort === 'price') copy.sort((a, b) => a.price - b.price)
-    if (sort === 'duration')
-      copy.sort((a, b) => parseFloat(a.duration) - parseFloat(b.duration))
-    return copy
-  }, [sort])
+  const activeCount =
+    windows.length + companies.length + amenities.length + (maxPrice < MAX_PRICE ? 1 : 0)
+
+  const clearAll = () => {
+    setWindows([])
+    setCompanies([])
+    setAmenities([])
+    setMaxPrice(MAX_PRICE)
+  }
+
+  const results = useMemo(() => {
+    let list = busTrips.filter((t) => {
+      if (windows.length && !windows.includes(windowOf(t.depTime))) return false
+      if (companies.length && !companies.includes(t.company)) return false
+      if (amenities.length && !amenities.every((a) => t.amenities.includes(a))) return false
+      if (t.price > maxPrice) return false
+      return true
+    })
+    list = [...list]
+    if (sort === 'price') list.sort((a, b) => a.price - b.price)
+    else if (sort === 'duration') list.sort((a, b) => parseFloat(a.duration) - parseFloat(b.duration))
+    else list.sort((a, b) => a.depTime.localeCompare(b.depTime))
+    return list
+  }, [windows, companies, amenities, maxPrice, sort])
 
   return (
     <div className="bg-mist">
@@ -70,7 +107,7 @@ export default function SearchResults() {
             <Pencil className="h-3.5 w-3.5" /> Edit Search
           </Link>
           <span className="hidden items-center gap-1.5 text-sm text-ink-500 lg:flex">
-            <Bus className="h-4 w-4" /> <strong className="text-ink-900">{busTrips.length} buses</strong> found
+            <Bus className="h-4 w-4" /> <strong className="text-ink-900">{results.length} buses</strong> found
           </span>
         </div>
       </div>
@@ -82,8 +119,19 @@ export default function SearchResults() {
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 font-bold text-ink-900">
                 <SlidersHorizontal className="h-4 w-4" /> Filters
+                {activeCount > 0 && (
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-ink-900 px-1.5 text-[11px] font-bold text-white">
+                    {activeCount}
+                  </span>
+                )}
               </h3>
-              <button className="text-xs font-semibold text-flame-600">Clear All</button>
+              <button
+                onClick={clearAll}
+                disabled={activeCount === 0}
+                className="text-xs font-semibold text-flame-600 disabled:cursor-not-allowed disabled:text-ink-300"
+              >
+                Clear All
+              </button>
             </div>
 
             <Section title="Departure Time">
@@ -94,11 +142,12 @@ export default function SearchResults() {
                     <button
                       key={w.key}
                       onClick={() => toggle(w.key, windows, setWindows)}
+                      aria-pressed={active}
                       className={cn(
                         'flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-center transition',
                         active
-                          ? 'border-ink-900 bg-ink-900 text-white'
-                          : 'border-ink-100 text-ink-500 hover:border-ink-200',
+                          ? 'border-ink-900 bg-ink-900 text-white shadow-soft'
+                          : 'border-ink-100 text-ink-500 hover:border-ink-300 hover:bg-ink-50',
                       )}
                     >
                       <w.icon className="h-4 w-4" />
@@ -122,6 +171,10 @@ export default function SearchResults() {
                       onChange={() => toggle(c.name, companies, setCompanies)}
                       className="h-4 w-4 rounded border-ink-200 text-ink-900 focus:ring-ink-900"
                     />
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ background: companyBrands[c.name]?.color ?? '#10075C' }}
+                    />
                     <span className="flex-1 text-ink-600">{c.name}</span>
                     <span className="text-xs text-ink-300">{c.count}</span>
                   </label>
@@ -129,25 +182,33 @@ export default function SearchResults() {
               </div>
             </Section>
 
-            <Section title="Price Range">
-              <input type="range" min={2000} max={6000} defaultValue={4500} className="w-full accent-ink-900" />
+            <Section title="Max Price">
+              <input
+                type="range"
+                min={MIN_PRICE}
+                max={MAX_PRICE}
+                step={100}
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(Number(e.target.value))}
+                className="w-full accent-ink-900"
+              />
               <div className="mt-2 flex justify-between text-xs font-semibold text-ink-600">
-                <span>RWF 2,000</span>
-                <span>RWF 6,000</span>
+                <span>Up to</span>
+                <span className="text-ink-900">{rwf(maxPrice)}</span>
               </div>
             </Section>
 
             <Section title="Amenities" last>
               <div className="space-y-2.5">
                 {amenityFilters.map((a) => (
-                  <label key={a} className="flex cursor-pointer items-center gap-2.5 text-sm">
+                  <label key={a.value} className="flex cursor-pointer items-center gap-2.5 text-sm">
                     <input
                       type="checkbox"
-                      checked={amenities.includes(a)}
-                      onChange={() => toggle(a, amenities, setAmenities)}
+                      checked={amenities.includes(a.value)}
+                      onChange={() => toggle(a.value, amenities, setAmenities)}
                       className="h-4 w-4 rounded border-ink-200 text-ink-900 focus:ring-ink-900"
                     />
-                    <span className="text-ink-600">{a}</span>
+                    <span className="text-ink-600">{a.label}</span>
                   </label>
                 ))}
               </div>
@@ -170,7 +231,10 @@ export default function SearchResults() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-extrabold text-ink-900">Kigali → Huye</h1>
-              <p className="text-sm text-ink-500">Tuesday, 15 July 2025 · 1 Passenger</p>
+              <p className="text-sm text-ink-500">
+                Tuesday, 15 July 2025 · {results.length} of {busTrips.length} buses
+                {activeCount > 0 && ' match your filters'}
+              </p>
             </div>
             <label className="flex items-center gap-2 text-sm text-ink-500">
               Sort by
@@ -186,47 +250,66 @@ export default function SearchResults() {
             </label>
           </div>
 
-          <div className="space-y-4">
-            {sorted.map((t) => (
-              <BusCard key={t.id} trip={t} />
-            ))}
-          </div>
-
-          {/* No more buses */}
-          <div className="mt-6 grid gap-4 rounded-2xl border border-ink-100 bg-white p-6 sm:grid-cols-[1fr_auto] sm:items-center">
-            <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-ink-50 text-ink-400">
-                <Bus className="h-5 w-5" />
+          {results.length > 0 ? (
+            <div className="space-y-4">
+              {results.map((t) => (
+                <BusCard key={t.id} trip={t} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-ink-100 bg-white p-12 text-center">
+              <span className="grid h-14 w-14 place-items-center rounded-2xl bg-ink-50 text-ink-300">
+                <SearchX className="h-6 w-6" />
               </span>
               <div>
-                <h3 className="font-bold text-ink-900">No more buses for this date</h3>
+                <h3 className="font-bold text-ink-900">No buses match your filters</h3>
                 <p className="mt-1 text-sm text-ink-500">
-                  All available buses for Kigali → Huye on Tuesday, 15 Jul are shown above.
-                  Try a different date to find more options.
+                  Try widening your price range or clearing a filter to see more options.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button className="btn-outline px-3 py-2 text-xs">
-                    <ChevronLeft className="h-3.5 w-3.5" /> Previous Day
-                  </button>
-                  <button className="btn-primary px-3 py-2 text-xs">
-                    Next Day <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                  <Link to="/no-buses" className="btn-ghost px-3 py-2 text-xs">
-                    <Calendar className="h-3.5 w-3.5" /> Pick Another Date
-                  </Link>
+              </div>
+              <button onClick={clearAll} className="btn-primary mt-1">
+                Clear all filters
+              </button>
+            </div>
+          )}
+
+          {/* No more buses */}
+          {results.length > 0 && (
+            <div className="mt-6 grid gap-4 rounded-2xl border border-ink-100 bg-white p-6 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div className="flex items-start gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-ink-50 text-ink-400">
+                  <Bus className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-ink-900">No more buses for this date</h3>
+                  <p className="mt-1 text-sm text-ink-500">
+                    All available buses for Kigali → Huye on Tuesday, 15 Jul are shown above.
+                    Try a different date to find more options.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button className="btn-outline px-3 py-2 text-xs">
+                      <ChevronLeft className="h-3.5 w-3.5" /> Previous Day
+                    </button>
+                    <button className="btn-primary px-3 py-2 text-xs">
+                      Next Day <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                    <Link to="/no-buses" className="btn-ghost px-3 py-2 text-xs">
+                      <Calendar className="h-3.5 w-3.5" /> Pick Another Date
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="max-w-xs rounded-xl bg-ink-50 p-4">
-              <div className="flex items-center gap-1.5 text-sm font-semibold text-ink-900">
-                <Info className="h-4 w-4 text-flame-600" /> Did you know?
+              <div className="max-w-xs rounded-xl bg-ink-50 p-4">
+                <div className="flex items-center gap-1.5 text-sm font-semibold text-ink-900">
+                  <Info className="h-4 w-4 text-flame-600" /> Did you know?
+                </div>
+                <p className="mt-1 text-xs text-ink-500">
+                  Wednesday, 16 Jul has 8 buses available for this route, including an early
+                  06:30 AM departure.
+                </p>
               </div>
-              <p className="mt-1 text-xs text-ink-500">
-                Wednesday, 16 Jul has 8 buses available for this route, including an early
-                06:30 AM departure.
-              </p>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -264,17 +347,10 @@ function BusCard({ trip }: { trip: BusTrip }) {
         </span>
       )}
       <div className="grid items-center gap-4 md:grid-cols-[auto_1fr_auto]">
-        <div className="flex items-center gap-3">
-          <span
-            className={cn(
-              'grid h-12 w-12 place-items-center rounded-xl text-sm font-bold text-white',
-              trip.iconColor,
-            )}
-          >
-            {trip.initials}
-          </span>
-          <div className="md:hidden">
-            <div className="font-semibold text-ink-900">{trip.company}</div>
+        <div className="flex items-center gap-3 md:flex-col md:gap-1.5">
+          <CompanyLogo company={trip.company} size="md" />
+          <div className="text-center md:max-w-[5.5rem]">
+            <div className="text-xs font-semibold leading-tight text-ink-700">{trip.company}</div>
           </div>
         </div>
 
