@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-white text-ink-900 font-sans antialiased;
+  }
+
+  ::selection {
+    @apply bg-ink-900/90 text-white;
+  }
+
+  /* Slim, on-brand scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #c6c0ec transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #c6c0ec;
+    border-radius: 9999px;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink-900/40 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-ink-900 text-white shadow-soft hover:bg-ink-800 hover:shadow-glow active:scale-[0.98];
+  }
+  .btn-flame {
+    @apply btn bg-flame-600 text-white shadow-soft hover:bg-flame-700 active:scale-[0.98];
+  }
+  .btn-outline {
+    @apply btn border border-ink-100 bg-white text-ink-900 hover:border-ink-200 hover:bg-ink-50;
+  }
+  .btn-ghost {
+    @apply btn text-ink-700 hover:bg-ink-50;
+  }
+
+  .card {
+    @apply rounded-2xl border border-ink-100/70 bg-white shadow-card;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-ink-100 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-ink-300 outline-none transition focus:border-ink-400 focus:ring-2 focus:ring-ink-900/10;
+  }
+
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-400;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold;
+  }
+
+  .nav-link {
+    @apply text-sm font-medium text-ink-500 transition hover:text-ink-900;
+  }
+
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.18em] text-flame-600;
+  }
+}
