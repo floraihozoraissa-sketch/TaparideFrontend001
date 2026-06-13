@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Search, Package, CheckCircle2, Circle, MapPin, Phone, Truck } from 'lucide-react'
 import { parcelTimeline } from '../data/mock'
 import { cn } from '../lib/utils'
+import MapEmbed from '../components/MapEmbed'
 
 export default function Track() {
   const [code, setCode] = useState('')
@@ -77,6 +78,14 @@ export default function Track() {
             </div>
 
             <aside className="space-y-4">
+              <div className="card overflow-hidden">
+                <div className="h-44">
+                  <MapEmbed from="Kigali, Rwanda" to="Huye, Rwanda" zoom={9} title="Parcel route: Kigali to Huye" />
+                </div>
+                <div className="flex items-center gap-2 px-5 py-3 text-xs font-medium text-ink-500">
+                  <MapPin className="h-3.5 w-3.5 text-flame-600" /> Live location · en route to Huye
+                </div>
+              </div>
               <div className="card p-5">
                 <h3 className="font-bold text-ink-900">Shipment details</h3>
                 <dl className="mt-3 space-y-2.5 text-sm">

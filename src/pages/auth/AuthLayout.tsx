@@ -9,7 +9,7 @@ export default function AuthLayout({
   footer,
 }: {
   title: string
-  subtitle: string
+  subtitle: React.ReactNode
   children: React.ReactNode
   footer?: React.ReactNode
 }) {

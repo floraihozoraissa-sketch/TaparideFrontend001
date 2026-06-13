@@ -36,6 +36,22 @@ export const busCompanies = [
   { name: 'Stella Express', count: 1 },
 ]
 
+/** Brand identity per bus company, used to render logo marks across the app. */
+export interface CompanyBrand {
+  /** brand accent color */
+  color: string
+  /** short, friendly name shown under the logo */
+  short: string
+}
+
+export const companyBrands: Record<string, CompanyBrand> = {
+  'Volcano Express': { color: '#DC2626', short: 'Volcano Express' },
+  'Ritco Express': { color: '#1D4ED8', short: 'Ritco Express' },
+  'Horizon Express': { color: '#EA580C', short: 'Horizon Express' },
+  'Kigali Coach': { color: '#047857', short: 'Kigali Coach' },
+  'Stella Express': { color: '#7C3AED', short: 'Stella Express' },
+}
+
 export const busTrips: BusTrip[] = [
   {
     id: 'VE-0800',

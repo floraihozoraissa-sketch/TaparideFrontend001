@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Ticket, Package, Wallet, ArrowRight, MapPin, Calendar, Plus } from 'lucide-react'
 import { trips, parcels } from '../../data/mock'
 import { cn, rwf } from '../../lib/utils'
+import { useAccount } from '../../store/account'
 
 const statusStyles: Record<string, string> = {
   Upcoming: 'bg-ink-100 text-ink-700',
@@ -13,13 +14,15 @@ const statusStyles: Record<string, string> = {
 }
 
 export default function Dashboard() {
+  const { profile } = useAccount()
+  const firstName = profile.fullName.split(' ')[0]
   return (
     <div className="space-y-6">
       {/* Welcome banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-ink-900 to-ink-700 p-6 text-white sm:p-8">
         <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-flame-600/30 blur-3xl" />
         <div className="relative">
-          <h1 className="text-2xl font-extrabold sm:text-3xl">Welcome back, Amina 👋</h1>
+          <h1 className="text-2xl font-extrabold sm:text-3xl">Welcome back, {firstName} 👋</h1>
           <p className="mt-1 max-w-md text-white/70">
             You have 1 upcoming trip and 1 parcel in transit. Ready for your next journey?
           </p>

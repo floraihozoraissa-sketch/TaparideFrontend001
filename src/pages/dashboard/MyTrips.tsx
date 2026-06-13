@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { Calendar, MapPin, Download, Bus, Ticket, Navigation } from 'lucide-react'
 import { trips, type Trip } from '../../data/mock'
 import { cn, rwf } from '../../lib/utils'
+import { downloadTicket } from '../../lib/ticket'
+import { useAccount } from '../../store/account'
 
 const tabs = ['All', 'Upcoming', 'Completed', 'Cancelled'] as const
 const statusStyles: Record<Trip['status'], string> = {
@@ -12,8 +14,26 @@ const statusStyles: Record<Trip['status'], string> = {
 }
 
 export default function MyTrips() {
+  const { profile } = useAccount()
   const [tab, setTab] = useState<(typeof tabs)[number]>('All')
   const filtered = tab === 'All' ? trips : trips.filter((t) => t.status === tab)
+
+  const handleDownload = (t: Trip) => {
+    const [from, to] = t.route.split('→').map((s) => s.trim())
+    const [date, time] = t.date.split('·').map((s) => s.trim())
+    downloadTicket({
+      bookingRef: t.id,
+      passenger: profile.fullName,
+      carrier: t.company,
+      depTime: time || '',
+      depPlace: from || '',
+      arrTime: '',
+      arrPlace: to || '',
+      date: date || t.date,
+      seats: t.seat,
+      amountPaid: rwf(t.price),
+    })
+  }
 
   return (
     <div className="space-y-5">
@@ -64,7 +84,7 @@ export default function MyTrips() {
                     <Link to="/journey" className="btn-flame px-4 py-2 text-xs">
                       <Navigation className="h-3.5 w-3.5" /> Track Live
                     </Link>
-                    <button className="btn-primary px-4 py-2 text-xs">
+                    <button onClick={() => handleDownload(t)} className="btn-primary px-4 py-2 text-xs">
                       <Download className="h-3.5 w-3.5" /> Ticket
                     </button>
                   </>
